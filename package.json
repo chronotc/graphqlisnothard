@@ -6,7 +6,7 @@
   "author": "chronotc <7519144+chronotc@users.noreply.github.com>",
   "license": "MIT",
   "scripts": {
-    "dev": "parcel index.html",
+    "start": "parcel index.html",
     "build": "parcel build index.html"
   },
   "devDependencies": {

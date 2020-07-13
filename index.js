@@ -9,22 +9,18 @@ const GET_USERS = gql`
     users {
       id
       firstname
+      flagged
       todos {
-        id
+        description
       }
     }
   }
 `;
 
 const client = new ApolloClient({
-  uri: "https://fakeql.com/graphql/f599fbe02ad502af0acd04ef54a4e829",
+  uri: "http://localhost:4000",
   connectToDevTools: true
 });
-
-const Tracking = ({ children }) => {
-  const { sendQuery } = useLazyQuery(TRACK_COMPONENT)
-  return children
-};
 
 const UsersList = () => {
   const { loading, data, error } = useQuery(GET_USERS);
@@ -39,18 +35,71 @@ const UsersList = () => {
 
   return (
     <div style={{ border: 'black 1px solid'}}>
-        User:
+        Users:
         {
-          data.users.map(({ firstname, id }) => (
+          data.users.map(({ firstname, id, flagged }) => (
             <div key={id}>
               {
-                firstname
+                `${firstname} - `
               }
+              {
+                flagged && <span>Flagged</span>
+              }
+              <RemoveButton id={id} />
+              <ToggleFlag id={id} />
             </div>
           ))
         }
     </div>
   );
+}
+
+const ToggleFlag = ({ id }) => {
+  const TOGGLE_FLAG = gql`
+    mutation toggleFlag($input: ToggleFlagInput) {
+      toggleFlag(input: $input) {
+        user {
+          id
+          flagged
+        }
+      }
+    }
+  `;
+
+  const [toggleFlag, { loading, data, error }] = useMutation(TOGGLE_FLAG, {
+    variables: {
+      input: {
+        id
+      }
+    }
+  });
+
+  return <span onClick={() => toggleFlag()}>[toggle-flag]</span>
+}
+
+
+const RemoveButton = ({ id }) => {
+  const REMOVE_USER = gql`
+    mutation RemoveUser($input: RemoveUserInput) {
+      removeUser(input: $input) {
+        users {
+          id
+          firstname
+        }
+      }
+    }
+  `;
+
+
+  const [removeUser, { loading, data, error }] = useMutation(REMOVE_USER, {
+    variables: {
+      input: {
+        id
+      }
+    }
+  });
+
+  return <span onClick={() => removeUser()}>[X]</span>
 }
 
 const UsersListTodos = () => {
@@ -66,15 +115,16 @@ const UsersListTodos = () => {
 
   return (
     <div style={{ border: 'red solid 1px'}}>
+      Todos:
       { data.users.map(
-        ({ id, firstname, todos }) => (
+        ({ id, firstname, todos, flagged }) => (
           <div key={`${id}-todos`}>
-            <div>
-              { firstname }
+            <div style={{marginTop: '20px'}}>
+              { firstname } { flagged && <span>Flagged</span>}
             </div>
-            <div>TODOS: </div>
+            <div style={{marginBottom: '10px'}}></div>
             {
-              todos.map(({ id: TODOID }) => (<div key={TODOID}>{TODOID} </div>))
+              todos.map(({ description }, index) => (<div key={index}>- {description} </div>))
             }
           </div>
       ))}
