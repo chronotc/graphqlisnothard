@@ -1,63 +1,10 @@
 const { ApolloServer, gql } = require('apollo-server');
-
-let users = [{
-  id: '1',
-  name: 'silla'
-}, {
-  id: '2',
-  name: 'dean'
-}, {
-  id: '3',
-  name: 'pepe'
-}]
-
-let todos = [{
-  userId: '1',
-  description: 'Washing'
-},
-{
-  userId: '1',
-  description: 'Cleaning'
-},
-{
-  userId: '1',
-  description: 'Coding'
-},
-{
-  userId: '2',
-  description: 'Gaming'
-},
-{
-  userId: '3',
-  description: 'Cooking'
-}
-]
+const User = require('./user-data-source')
 
 // The GraphQL schema
-const typeDefs = gql`
+const typeDefs = gql `
   type Query {
     users: [User]
-  }
-
-  type Mutation {
-    toggleFlag(input: ToggleFlagInput): ToggleFlagResponse
-    removeUser(input: RemoveUserInput): RemoveUserResponse
-  }
-
-  input RemoveUserInput {
-    id: ID
-  }
-
-  type RemoveUserResponse {
-    users: [User]
-  }
-
-  input ToggleFlagInput {
-    id: ID
-  }
-
-  type ToggleFlagResponse {
-    user: User
   }
 
   type User {
@@ -70,16 +17,58 @@ const typeDefs = gql`
   type Todo {
     description: String
   }
+
+  type Mutation {
+    toggleFlag(input: ToggleFlagInput): ToggleFlagResponse
+    removeUser(input: RemoveUserInput): RemoveUserResponse
+  }
+
+  input ToggleFlagInput {
+    id: ID
+  }
+
+  type ToggleFlagResponse {
+    user: User
+  }
+
+  input RemoveUserInput {
+    id: ID
+  }
+
+  type RemoveUserResponse {
+    users: [User]
+  }
 `;
 
 // A map of functions which return data for the schema.
 const resolvers = {
   Query: {
-    users: (parent, args, context) => getUsers()
+    users: (_, __, {
+      dataSources: {
+        userAPI
+      }
+    }) => getUsers(userAPI)
+  },
+  User: {
+    id: parent => parent.id,
+    firstname: parent => parent.name,
+    todos: (parent, __, {
+      dataSources: {
+        userAPI : {
+          getTodos
+        }
+      }
+    }) => getUserTodos(parent.id, getTodos)
   },
   Mutation: {
-    toggleFlag: (parent, args) => {
+    toggleFlag: (_, args, {
+      dataSources: {
+        userAPI
+      }
+    }) => {
       const id = args.input.id;
+      let users = userAPI.getUser();
+
       users = users.map(user => {
         if (user.id === id) {
           return {
@@ -87,42 +76,59 @@ const resolvers = {
             flagged: !user.flagged
           }
         }
+
         return user;
       });
+
       return id;
     },
-    removeUser: (parent, args) => {
+    removeUser: (_, args, {
+      dataSources: {
+        userAPI
+      }
+    }) => {
       const id = args.input.id;
+      let users = userAPI.getUser();
+
       users = users.filter(user => user.id !== id);
+
       return users;
     }
   },
   RemoveUserResponse: {
-    users: () => getUsers()
+    users: (_, __, {
+      dataSources: {
+        userAPI
+      }
+    }) => getUsers(userAPI)
   },
   ToggleFlagResponse: {
-    user: (id) => getUserById(id)
+    user: (parent, __, {
+      dataSources: {
+        userAPI : {
+          getUser: users
+        }
+      }
+    }) =>  getUserById(parent, users)
   },
-  User: {
-    firstname: user => user.name,
-    todos: user => {
-      return getUserTodos(user.id)
-    }
-  }
 };
+
+const getUsers = (userAPI) => userAPI.getUser();
+
+const getUserTodos = (id, todos) => todos().filter(todo => todo.userId === id)
+
+const getUserById = (id, users) => users().filter(user => user.id === id)[0]
 
 const server = new ApolloServer({
   typeDefs,
-  resolvers
+  resolvers,
+  dataSources: () => ({
+    userAPI: new User()
+  })
 });
 
-server.listen().then(({ url }) => {
+server.listen().then(({
+  url
+}) => {
   console.log(`🚀 Server ready at ${url}`);
 });
-
-
-const getUsers = () => users
-
-const getUserById = (id) => users.filter(user => user.id === id)[0]
-
-const getUserTodos = (id) => todos.filter(todo => todo.userId === id)
