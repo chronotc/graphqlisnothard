@@ -2,7 +2,7 @@ const { ApolloServer, gql } = require('apollo-server');
 const User = require('./user-data-source')
 
 // The GraphQL schema
-const typeDefs = gql `
+const typeDefs = gql`
   type Query {
     users: [User]
   }
@@ -43,31 +43,18 @@ const typeDefs = gql `
 // A map of functions which return data for the schema.
 const resolvers = {
   Query: {
-    users: (_, __, {
-      dataSources: {
-        userAPI
-      }
-    }) => getUsers(userAPI)
+    users: (_, __, { userAPI: { getUsers } }) => getUsers()
   },
   User: {
     id: parent => parent.id,
     firstname: parent => parent.name,
-    todos: (parent, __, {
-      dataSources: {
-        userAPI : {
-          getTodos
-        }
-      }
+    todos: (parent, __, {userAPI: { getTodos }
     }) => getUserTodos(parent.id, getTodos)
   },
   Mutation: {
-    toggleFlag: (_, args, {
-      dataSources: {
-        userAPI
-      }
-    }) => {
+    toggleFlag: (_, args, { userAPI: { getUsers } }) => {
       const id = args.input.id;
-      let users = userAPI.getUser();
+      let users = getUsers();
 
       users = users.map(user => {
         if (user.id === id) {
@@ -82,13 +69,9 @@ const resolvers = {
 
       return id;
     },
-    removeUser: (_, args, {
-      dataSources: {
-        userAPI
-      }
-    }) => {
+    removeUser: (_, args, { userAPI: { getUsers } }) => {
       const id = args.input.id;
-      let users = userAPI.getUser();
+      let users = getUsers();
 
       users = users.filter(user => user.id !== id);
 
@@ -96,24 +79,12 @@ const resolvers = {
     }
   },
   RemoveUserResponse: {
-    users: (_, __, {
-      dataSources: {
-        userAPI
-      }
-    }) => getUsers(userAPI)
+    users: (_, __, { userAPI: { getUsers } }) => getUsers()
   },
   ToggleFlagResponse: {
-    user: (parent, __, {
-      dataSources: {
-        userAPI : {
-          getUser: users
-        }
-      }
-    }) =>  getUserById(parent, users)
+    user: (parent, __, { userAPI: { getUsers } }) =>  getUserById(parent, getUsers)
   },
 };
-
-const getUsers = (userAPI) => userAPI.getUser();
 
 const getUserTodos = (id, todos) => todos().filter(todo => todo.userId === id)
 
@@ -122,7 +93,7 @@ const getUserById = (id, users) => users().filter(user => user.id === id)[0]
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  dataSources: () => ({
+  context: () => ({
     userAPI: new User()
   })
 });
