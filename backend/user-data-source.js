@@ -32,7 +32,7 @@ let todos = [{
 ]
 
 class User {
-  getUser() {
+  getUsers() {
     return users;
   }
 
